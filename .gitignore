@@ -7,5 +7,5 @@ __pycache__/
 # Virtual environment folder
 rbm_report_env/
 
-# others
-*output.json
+# Ignore all JSON files
+*.json

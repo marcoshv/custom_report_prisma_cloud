@@ -8,4 +8,4 @@ __pycache__/
 rbm_report_env/
 
 # others
-*.json
+*output.json

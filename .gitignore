@@ -6,3 +6,6 @@ __pycache__/
 
 # Virtual environment folder
 rbm_report_env/
+
+# others
+*.json

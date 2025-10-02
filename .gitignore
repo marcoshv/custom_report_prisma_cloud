@@ -1,0 +1,8 @@
+# Environment variables
+.env
+
+# Python cache
+__pycache__/
+
+# Virtual environment folder
+rbm_report_env/

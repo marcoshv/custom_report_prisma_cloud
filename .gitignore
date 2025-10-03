@@ -5,7 +5,7 @@
 __pycache__/
 
 # Virtual environment folder
-rbm_cwp_report/
+rbm_cwp_report*
 
 # Ignore all JSON files
 *.json

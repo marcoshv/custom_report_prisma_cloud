@@ -9,3 +9,6 @@ rbm_report_env/
 
 # Ignore all JSON files
 *.json
+
+# others
+test_nvd.py

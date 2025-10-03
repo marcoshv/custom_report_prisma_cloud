@@ -122,7 +122,7 @@ FINAL_REDEBAN_COLUMNS = [
 BLANK_COLUMNS = [
     "Finding ARN", "Network Paths",
     "Resource Public Ipv4", "Resource Private Ipv4", "Resource Ipv6", "Resource Vpc",
-    "Port Range", "Last Exploited At", "Detector Name", "Image Last In Use At",
+    "Port Range",  "Detector Name", "Image Last In Use At",
     "Image In Use Count",
 ]
 

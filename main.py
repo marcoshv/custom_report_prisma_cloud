@@ -1,16 +1,13 @@
 import datetime
 import json
-
 from io import BytesIO
 from urllib.error import HTTPError
 from urllib.request import urlopen
-
 import re
-
 import pandas as pd
 import api
 from io import StringIO
-
+from cisa_kev.client import Client, Query, Catalog
 from api import NoProperResponseError
 from helpers.helper import ReportsSecureMapping, REPORTS, FINAL_REDEBAN_COLUMNS, \
     COLUMNS_RENAMES, BLANK_COLUMNS, REAL_PACKAGE_NAMES, GENERIC_PACKAGE, OS_COMMAND_MAP
@@ -34,6 +31,12 @@ class CWPReportData:
         self.vms_data = None
         if self.report_key == ReportsSecureMapping.HOSTS:
             self.vms_data = self.get_vms_data()
+
+        # Initialize the CISA KEV catalog once for performance.
+        logging.info("Initializing CISA KEV Catalog...")
+        self.cisa_client = Client()
+        #print(f"Found {len(self.cisa_client)} known exploited vulnerabilities.")
+        self.cisa_cache = {} # Cache for storing results
 
     # api calls
     def download_vulnerability_report(self):
@@ -336,6 +339,9 @@ class CWPReportData:
         # "severity" column
         df['Severity'] = df['Severity'].str.upper()
 
+        # "Last Exploited At" column
+        df['Last Exploited At'] = df.apply(self.populate_last_exploited_at, axis=1)
+
         # irreplicable columns
         all_blank_columns = BLANK_COLUMNS + [column for column in self.report.get("selected_columns") if column in FINAL_REDEBAN_COLUMNS and column not in df.columns and column not in BLANK_COLUMNS]
         for column in all_blank_columns:
@@ -505,6 +511,44 @@ class CWPReportData:
                     return ", ".join(remediation_parts)
             
             return f"update to {fixed_in_version_str}"
+        
+    def get_cisa_exploit_date(self, cve_id):
+        # This function looks up a single CVE using the CISA KEV Client.
+        if not cve_id or pd.isna(cve_id) or not str(cve_id).startswith('CVE-'):
+            return ""
+        
+        # Check our cache first to avoid redundant lookups.
+        if cve_id in self.cisa_cache:
+            return self.cisa_cache[cve_id]
+
+        logging.info(f"Checking CISA KEV catalog for: {cve_id}")
+        
+        date_added = ""
+        try:
+            # Create a query for the specific CVE ID.
+            query = Query(cve_ids=[cve_id])
+            # Get the filtered catalog using the Client object.
+            filtered_catalog = self.cisa_client.get_catalog(query=query)
+            
+            # Check if the vulnerability was found in the catalog.
+            if filtered_catalog.vulnerabilities:
+                vulnerability = filtered_catalog.vulnerabilities[0]
+                # Get the date_added and format it as a string.
+                date_added = vulnerability.date_added.strftime('%Y-%m-%d')
+                logging.info(f" > Found date for {cve_id}: {date_added}")
+        except Exception as e:
+            logging.error(f"Error querying CISA KEV catalog for {cve_id}: {e}")
+
+        # Save the result (even if blank) to the cache and return it.
+        self.cisa_cache[cve_id] = date_added
+        return date_added
+
+    def populate_last_exploited_at(self, row):
+        # This function is applied to each row to decide if a lookup is needed.
+        if row.get("Exploit Available") == "YES":
+            cve = row.get("Vulnerability ID")
+            return self.get_cisa_exploit_date(cve)
+        return ""
     
     def save_report_to_csv(self, final_dataframe):
         # process the CSV data and save it to a file, applying necessary transformations.
